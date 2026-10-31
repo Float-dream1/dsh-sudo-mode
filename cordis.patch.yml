@@ -1,0 +1,30 @@
+# DSH Sudo 访问模式
+#
+# 1) 在现有三个权限档位之外新增一个 sudo-access 档位。
+#    它本身仍是「工作区可写 + 每次询问」；真正的 root 权限由 sudo_exec 工具提供，
+#    每次执行都要在系统密码框里手动输入 root 密码。
+# 2) 挂载实现该工具的本地插件。
+#
+# 注意：sudo-access 必须排在 workspace-write 之后，避免它成为新会话的默认档位。
+
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+      sudo-access:
+        sandbox: workspace-write
+        approval: ask
+        name: Sudo 访问
+        description: 工作区可写；执行 root 命令前会弹出系统密码框，每次手动输入密码。
+
+- insert:
+    - id: sudo-mode
+      name: 'dsh-sudo-mode'
