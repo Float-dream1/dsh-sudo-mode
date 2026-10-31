@@ -4,9 +4,26 @@
   "private": false,
   "type": "module",
   "description": "DSH 的 Sudo 访问权限模式：执行 root 命令前弹出系统密码框，手动输入密码。",
-  "keywords": ["dsh", "deepseek-harness", "sudo", "permission", "plugin"],
-  "engines": { "node": ">=20" },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "sudo",
+    "permission",
+    "plugin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
+  "author": "Float-dream1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Float-dream1/dsh-sudo-mode.git"
+  },
+  "homepage": "https://github.com/Float-dream1/dsh-sudo-mode#readme",
+  "bugs": {
+    "url": "https://github.com/Float-dream1/dsh-sudo-mode/issues"
+  },
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",

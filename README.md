@@ -1,5 +1,8 @@
 # DSH Sudo 访问模式
 
+[![npm](https://img.shields.io/npm/v/dsh-sudo-mode)](https://www.npmjs.com/package/dsh-sudo-mode)
+[![license](https://img.shields.io/npm/l/dsh-sudo-mode)](./LICENSE)
+
 > 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 增加一个「Sudo 访问」权限档位：模型执行 root 命令前，由你在系统密码框中手动输入密码。
 
 
@@ -15,13 +18,25 @@
 
 ## 安装
 
-这是一个 DSH bundle，不是 npm 包。用 DSH 的插件管理器从仓库安装，然后重启客户端：
+已发布为 npm 包。安装后重启 DSH：
 
-```text
-plugin_manager install_bundle github:<owner>/dsh-sudo-mode
+```bash
+npm install dsh-sudo-mode
 ```
 
-也可以把仓库目录交给本地安装：
+或在 DSH 插件管理器里直接填包名：
+
+```text
+plugin_manager install_bundle dsh-sudo-mode
+```
+
+也可以从 GitHub 仓库安装：
+
+```text
+plugin_manager install_bundle github:Float-dream1/dsh-sudo-mode
+```
+
+本地开发时可以把仓库目录交给本地安装：
 
 ```text
 plugin_manager install_bundle /path/to/dsh-sudo-mode
