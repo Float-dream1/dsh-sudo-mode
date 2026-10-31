@@ -7,6 +7,12 @@
 #
 # 注意：sudo-access 必须排在 workspace-write 之后，避免它成为新会话的默认档位。
 
+# 3) 让 DSH 终端启动到 sudo 包装 shell。该 shell 仍运行在原来的 sandbox 里，
+#    只把 sudo 命令通过 Unix socket 转给 host broker；密码框由 host 弹出。
+- id: terminal-bash
+  config:
+    shellPath: !!js (process.env.DSH_HOME || (process.env.HOME + '/.dsh')) + '/sudo-mode/terminal-shell.sh'
+
 - id: permission
   config:
     presets:
