@@ -1,9 +1,9 @@
 {
   "name": "dsh-sudo-mode",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": false,
   "type": "module",
-  "description": "DSH 的 Sudo 访问权限模式：执行 root 命令前弹出系统密码框，手动输入密码。",
+  "description": "DSH 的 Sudo 访问权限模式：root 命令前弹窗输入密码；高危黑名单与模型危险度评分触发红色/黄色二次确认。",
   "keywords": [
     "dsh",
     "deepseek-harness",
