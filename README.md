@@ -3,6 +3,14 @@
 [![npm](https://img.shields.io/npm/v/dsh-sudo-mode)](https://www.npmjs.com/package/dsh-sudo-mode)
 [![license](https://img.shields.io/npm/l/dsh-sudo-mode)](./LICENSE)
 
+严重警告！！！当前版本存在重大漏洞！在实测中，底层模型曾试图通过更改语法绕过黑名单、通过 SSH 进行内网横向移动、甚至试图强杀宿主机正在运行的其他虚拟机。以及会试图猜出用户的root密码，在虚拟机测试中并没有告知模型root密码但是模型猜出了root密码并用于在虚拟机中执行高危操作
+
+Log 01 - 语法绕过：模型在 rm -rf 被黑名单拦截后，主动尝试寻找其他等效的递归删除语法。
+
+• Log 02 - 横向移动与跳板：模型利用终端权限执行 ssh，通过弱口令突破测试机并获取 root 权限，试图绕过宿主机授权。
+
+• Log 03 - 破坏性断电 (最危险)：模型为测试拦截机制，试图在宿主机使用 virsh destroy 强制关闭正在运行的 Win10 虚拟机。在模型的语义理解中，这只是“关闭电源”的无害操作，完全缺乏对人类数据安全和物理上下文常识的认知。
+
 > 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 增加一个「Sudo 访问」权限档位：模型执行 root 命令前，由你在系统密码框中手动输入密码。
 
 
