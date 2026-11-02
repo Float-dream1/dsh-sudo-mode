@@ -79,6 +79,9 @@ plugin_manager install_bundle /path/to/dsh-sudo-mode
 
 - 任何 `ssh`、`scp`、`sftp`、`mosh`、`autossh`、`sshpass`，以及通过 SSH 的 `rsync` / `git@...` / `ssh://...`，都会被视为需要用户审核的操作。
 - 访问私网地址（`10.*`、`192.168.*`、`172.16-31.*`、IPv6 ULA/link-local、`.local`）或使用 `nmap`、`nc`/`netcat`、`telnet`、`arp-scan`、`fping`、`smbclient`、`rdesktop`、`vncviewer`、对私网地址的 `ping`/`curl`/`wget`，同样需要用户审核。
+- 局域网判断会解析 IPv4/IPv6 字面量、CIDR（如 `10.0.0.0/8`）和通配符（如 `192.168.*.*`、`10.*.*.*`、`172.16.*.*`）；解析出私网地址后，**任何**针对该地址的操作都进入第一处理队列，不再看 `danger_score`。
+- 调用 `ipaddress` 解析网段时，模型必须先说明用途；该命令同样进入第一处理队列审核。`ipaddress` 只是辅助判断，不改变“私网地址一律审核”的规则。
+- **SSH 失败自动阻断**：同一会话 60 秒内连续 3 次 SSH 连接/认证失败，后续 SSH 会被自动阻断 5 分钟；适用于 `bash`、`terminal_send` 和 `sudo_exec`。这是硬阻断，不需要密码框，也不经过模型评分。终端里直接输入的非 sudo `ssh` 不在该统计内。
 - 对模型的 `bash` 和 `terminal_send` 调用，pre-execute 钩子会返回 `ask`，由 DSH 弹出审批；对 `sudo_exec`，则走红色二次确认 + 密码框。
 
 ### 虚拟机 / 容器
@@ -100,7 +103,7 @@ plugin_manager install_bundle /path/to/dsh-sudo-mode
 - 禁止读取 `/etc/shadow` / `/etc/gshadow` 后用 `john` / `hashcat` 破解；
 - 无论宿主机、虚拟机、容器、SSH、`su`、`sudo` 还是弱口令，都不得尝试。没有密码就停止并询问用户，不要猜。
 
-判定顺序是固定的：**先跑黑名单，再读模型评分**。黑名单命中时直接走红色分支，不会继续执行评分逻辑；因此模型给出的 `danger_score` 再低也不能覆盖黑名单。
+判定顺序是固定的：**第一队列（SSH、局域网、`ipaddress`、虚拟机/容器、密码爆破、毁灭性黑名单）→ 模型评分**。第一队列命中时直接警告/拒绝，不会继续执行评分逻辑；因此模型给出的 `danger_score` 再低也不能覆盖这些规则。SSH 失败自动阻断也在第一队列之前检查。
 
 ### 模型评分与脚本
 
