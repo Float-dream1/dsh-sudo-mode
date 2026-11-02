@@ -65,9 +65,40 @@ plugin_manager install_bundle /path/to/dsh-sudo-mode
 - `reboot`、`shutdown`、`poweroff`、`halt`；
 - `mkfs` / `mke2fs` / `wipefs` / `fdisk` / `parted` / `dd`；
 - `efibootmgr`、`grub-install`、`grub-mkconfig`、`update-grub`、`bootctl`、`refind-install`，以及涉及 `/boot/efi`、`/boot/loader`、`/etc/fstab` 等引导/挂载路径的命令；
-- `find -delete`、`find -exec rm`、fork bomb 等模式。
+- `find -delete`、`find -exec rm`、fork bomb 等模式；
+- `virsh`、`docker`、`lxc` / `lxd`：管理、停止、销毁或重配虚拟机/容器；
+- `unlink`、`shred`、`truncate` 等删除/覆写文件的命令。
 
 `systemctl` 的启动、停止、重启等普通服务操作不触发二次确认；但 `systemctl reboot` 和 `systemctl poweroff` 会触发，因为它们会直接重启或关闭系统。所有 systemctl 操作仍受 sudo 密码框和命令展示约束。
+
+黑名单会先做归一化和模糊识别：`r\m`、`r''m`、`r$IFS m`、`/bin/rm`、`xargs rm`、`bash -c "rm ..."`、`busybox rm`、`base64 -d ... | sh` 等常见写法都会归一到同一类命令，不依赖模型评分。它不可能覆盖所有 shell 混淆；遇到可疑写法请直接拒绝。
+
+## SSH、局域网、虚拟机与密码安全
+
+### SSH / 局域网审核
+
+- 任何 `ssh`、`scp`、`sftp`、`mosh`、`autossh`、`sshpass`，以及通过 SSH 的 `rsync` / `git@...` / `ssh://...`，都会被视为需要用户审核的操作。
+- 访问私网地址（`10.*`、`192.168.*`、`172.16-31.*`、IPv6 ULA/link-local、`.local`）或使用 `nmap`、`nc`/`netcat`、`telnet`、`arp-scan`、`fping`、`smbclient`、`rdesktop`、`vncviewer`、对私网地址的 `ping`/`curl`/`wget`，同样需要用户审核。
+- 对模型的 `bash` 和 `terminal_send` 调用，pre-execute 钩子会返回 `ask`，由 DSH 弹出审批；对 `sudo_exec`，则走红色二次确认 + 密码框。
+
+### 虚拟机 / 容器
+
+`virsh`、`docker`、`lxc`、`lxd` 一律按高危处理。特别是以下操作会额外标注“修改虚拟机/容器配置或用户”：
+
+- `virsh edit`、`define`、`undefine`、`destroy`、`shutdown`、`reboot`、`reset`、`attach-*` / `detach-*`、`setmem`、`setmaxmem`、`setvcpus`、`qemu-agent-command`、`guest-exec`；
+- `lxc config ...`，或在容器里执行 `useradd` / `usermod` / `passwd` / `userdel`；
+- `docker run --privileged`、`--pid=host`、`--network=host`、挂载 `/:/host`，或在容器里修改用户/密码。
+
+不要为了“清理环境”停止正在工作的虚拟机或容器；必须先说明影响并让用户确认。
+
+### 禁止爆破 / 猜测 root 密码
+
+这是硬性拒绝，不是二次确认：
+
+- 禁止使用 `hydra`、`john`、`hashcat`、`medusa`、`patator`、`ncrack`、`crowbar`、`brutespray`、`crackmapexec` / `nxc`、`chntpw`；
+- 禁止用 `sshpass`、`expect` 循环、`echo password | su`、`for ...; do su ...; done` 等方式尝试密码；
+- 禁止读取 `/etc/shadow` / `/etc/gshadow` 后用 `john` / `hashcat` 破解；
+- 无论宿主机、虚拟机、容器、SSH、`su`、`sudo` 还是弱口令，都不得尝试。没有密码就停止并询问用户，不要猜。
 
 判定顺序是固定的：**先跑黑名单，再读模型评分**。黑名单命中时直接走红色分支，不会继续执行评分逻辑；因此模型给出的 `danger_score` 再低也不能覆盖黑名单。
 
@@ -93,7 +124,8 @@ Sudo 访问模式下，DSH 终端里的 `sudo <命令>` 也可以直接使用。
 - 不支持 `sudo vim`、`sudo -i`、需要 TTY 的交互式程序；
 - 只拦截直接输入的 `sudo <命令>`，不拦截脚本里写死的 `/usr/bin/sudo`；
 - broker 每次执行前都会重新检查当前权限模式必须是 **Sudo 访问**，否则拒绝；
-- 终端只做黑名单红色二次确认，**没有模型危险度评分**；需要模型解释命令作用、并按评分触发黄色确认时，让助手调用 `sudo_exec`。
+- 终端只做黑名单和模糊识别（SSH、局域网、虚拟机/容器、引导/分区等红色二次确认；密码爆破直接拒绝），**没有模型危险度评分**；需要模型解释命令作用、并按评分触发黄色确认时，让助手调用 `sudo_exec`。
+- 终端里直接输入的非 sudo 命令（包括直接 `ssh`、`ping 192.168.x.x`、`docker ...`）不经过本插件；需要审核时交给聊天里的 `bash` / `sudo_exec`。
 
 终端 sudo 与 `sudo_exec` 是两条独立入口：终端命令不经过模型，因此没有 `purpose` 段落，密码框只显示终端命令本身；需要模型解释命令作用时，仍让助手调用 `sudo_exec`。
 
