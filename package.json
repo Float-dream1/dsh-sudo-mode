@@ -1,6 +1,6 @@
 {
   "name": "dsh-sudo-mode",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": false,
   "type": "module",
   "description": "DSH 的 Sudo 访问权限模式：root 命令前弹窗输入密码；高危黑名单与模型危险度评分触发红色/黄色二次确认。",
@@ -35,7 +35,8 @@
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
-    "SECURITY.md"
+    "SECURITY.md",
+    "SECURITY_POLICY.md"
   ],
   "dsh": {
     "bundle": {
