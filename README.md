@@ -24,6 +24,13 @@ Log 01 - 语法绕过：模型在 rm -rf 被黑名单拦截后，主动尝试寻
 6. `sudo` 执行命令，工具返回 stdout / stderr / 退出码；
 7. 每次执行前用 `sudo -k` 清除旧凭据，所以每次都要重新输入密码。
 
+## 远程/无图形会话快速失败
+
+- 二次确认框默认等待 **120 秒**；无人点击会自动关闭并返回超时错误。可用 `DSH_SUDO_CONFIRM_TIMEOUT`（秒）覆盖，设为 `0` 表示永不超时。
+- 弹窗前会用 `/usr/bin/xdpyinfo` 探活当前显示，并扫描本机 X socket 和当前用户拥有的 `/tmp/xauth_*`。DSH 启动后切换桌面环境也不会继续使用失效的 `DISPLAY` / `XAUTHORITY`。
+- 找不到可用图形会话时，**不会 spawn zenity**，而是 2～3 秒内直接返回：`已拒绝：这台机器当前没有可用的图形会话（试过 :0 / :1），无法弹出授权窗口。提权确认必须在电脑本机的图形桌面上完成，远程或纯命令行环境无法提权。`
+- 这不会让远程会话获得提权能力；只是让“没人能在本机点确认”的情况快速失败，而不是静默等待 10 分钟。
+
 ## 安装
 
 已发布为 npm 包。推荐在 DSH 插件管理器里直接填包名，它会从 npm 安装并加入当前 profile：
@@ -131,6 +138,28 @@ Sudo 访问模式下，DSH 终端里的 `sudo <命令>` 也可以直接使用。
 - 终端里直接输入的非 sudo 命令（包括直接 `ssh`、`ping 192.168.x.x`、`docker ...`）不经过本插件；需要审核时交给聊天里的 `bash` / `sudo_exec`。
 
 终端 sudo 与 `sudo_exec` 是两条独立入口：终端命令不经过模型，因此没有 `purpose` 段落，密码框只显示终端命令本身；需要模型解释命令作用时，仍让助手调用 `sudo_exec`。
+
+## 审计、截屏与确认限速
+
+### 审计日志
+
+每条 root 命令（成功、取消、超时、被拒、异常）都会追加一行 JSONL 到 `~/.config/dsh-desktop/harness/sudo-audit.jsonl`，文件权限 `0600`，只追加、不重写。字段包括时间、会话、cwd、命令、类别、评分、确认结果、退出码、耗时和客户端 PID。日志写入失败不会影响命令执行。
+
+密码本身不会进入日志；但命令输出可能包含秘密，不要把 `/etc/shadow`、token 等打印到 stdout。
+
+### 截屏 / 录屏
+
+`import -window root`、`-screen`、`x:` 截图，`spectacle`、`grim`、`scrot`、`flameshot`、`maim`、`xwd`、`gnome-screenshot`，`ffmpeg -f x11grab`，以及 `xdotool getwindowfocus` / `getactivewindow` 都归入 `screen-capture` 黑名单，命中即红色确认。普通 `import a.png b.png` 和普通 `ffmpeg` 转码不会误伤。
+
+### 确认限速
+
+二次确认框有模块级限速：同一会话每分钟最多 1 次；连续 2 次取消/超时后冷却 5 分钟，冷却期内直接拒绝并写审计。只有黑名单/评分确认框受限速，普通的 sudo 密码框不受影响。
+
+## Broker 连接来源校验
+
+`broker.sock` 前面有一个 Python `peer-gate.py`：它用 Unix socket 的 `SO_PEERCRED` 读取连接进程的 UID/PID，要求 UID 与 DSH 相同、连接进程确实是 `sudo-client.py`，并沿 `/proc/<pid>/status` 的 PPid 向上检查最多 5 层，找到 DSH 进程才转发请求；不满足时直接断开，并写一条 `reason: "refused:peer"` 的审计记录。
+
+gate 只通过自己的 stdin/stdout 与 host 插件通信，不再额外暴露内部 socket，因此沙箱里的进程即使拿到 `DSH_SESSION_ID`，也不能绕过来源检查直接连接 host broker。正常 DSH 终端里的 `sudo` 仍然可用；普通系统终端里的 `sudo` 不经过这个 broker，不受影响。
 
 ## 工作区边界
 

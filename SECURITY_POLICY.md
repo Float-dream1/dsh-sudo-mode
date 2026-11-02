@@ -74,3 +74,10 @@ dsh-sudo-mode v0.3.2 最终执行流程
 - 调用 `ipaddress` 解析网段时必须向用户说明用途；该命令同样进入第一队列。
 - SSH、局域网、`ipaddress`、`virsh`/`docker`/`lxc`、虚拟机/容器配置、密码爆破，与高危黑名单同属第一处理队列，先于 `danger_score`，不受模型评分影响。
 - 禁止通过任何手段爆破、猜测、枚举或破解 root 密码；没有密码就停止并询问用户。  
+
+## v0.5.3 安全增补
+
+- 审计日志：每条 root 命令统一追加到 `~/.config/dsh-desktop/harness/sudo-audit.jsonl`（0600），记录命令、会话、cwd、类别、确认结果、退出码、耗时和客户端 PID；日志失败不影响执行。
+- 截屏/录屏识别：`import -window root`、`spectacle`、`grim`、`scrot`、`flameshot`、`maim`、`xwd`、`gnome-screenshot`、`ffmpeg -f x11grab`、`xdotool getwindowfocus` 等进入 `screen-capture` 黑名单，触发红色二次确认；普通 `convert` 和普通 `ffmpeg` 转码不拦。
+- Broker 对端校验：`broker.sock` 由 `peer-gate.py` 先校验 Unix socket 对端 UID、连接进程必须是 `sudo-client.py`、且进程链 5 层内包含 DSH；不合格直接断开并写 `refused:peer` 审计。gate 只通过 stdin/stdout 转发，不再暴露内部 socket。
+- 确认框限速：同一会话每分钟最多 1 次二次确认；连续 2 次取消/超时后冷却 5 分钟；限速拒绝也写审计。普通 sudo 密码框不受影响。
