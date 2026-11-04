@@ -5,6 +5,7 @@
 
 > 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 增加一个「Sudo 访问」权限档位：模型执行 root 命令前，由你在系统密码框中手动输入密码。
 
+emmm,该插件为Linux端Deepseek Harness客户端设计，如果你是Windows用户，那我的建议是切换成完全访问模式来的方便些，毕竟我想不出来我这插件在Windows端的Deepseek Harness客户端有啥用，你干脆点两下UAC弹窗得了，诶，好像微软给Win11更新了个sudo模式，但是安全性如同棍母一般，我还是想点新的创意吧...
 
 给当前 DSH 增加第四个权限档位 **Sudo 访问**。它不是让模型直接拿到 root，而是在模型调用 `sudo_exec` 工具时：
 
