@@ -49,9 +49,17 @@ plugin_manager install_bundle /path/to/dsh-sudo-mode
 
 选择 **Sudo 访问** 后，让模型执行需要 root 的命令。模型会调用 `sudo_exec`，密码框会弹出并显示命令作用与完整命令。
 
+### 只读命令不需要 root 密码
+
+`ls`、`tree`、`find`、`stat`、`cat`、`head`、`tail`、`du`、`df`、`file`、`readlink`、`git status/log/diff`、`docker ps`、`virsh list` 等只读命令**不提权**：只弹一个确认框，点确认后以当前用户执行，不会出现密码框。
+
+- 只读命令仍然先经过黑名单、SSH、局域网、虚拟机/容器和密码爆破检查；`docker ps`、`virsh list` 仍会弹红色确认，只是不要求密码；
+- 只读列表按命令名判断，自定义脚本、`bash -c` 或未列出的命令仍可能走提权/密码流程；
+- 目标只有 root 可读时，非提权执行会返回权限错误，这是预期行为，不要尝试绕过文件权限。
+
 ## 高危命令二次确认
 
-密码框之前会先弹出一个独立的确认框，默认按钮是「取消」。只有点「继续执行」才会进入密码框；点「取消」不会执行。
+需要 root 的命令，密码框之前会先弹出一个独立的确认框，默认按钮是「取消」。只有点「继续执行」才会进入密码框；点「取消」不会执行。只读命令没有密码框，只保留这层确认。
 
 确认框分两档：
 
@@ -118,18 +126,19 @@ plugin_manager install_bundle /path/to/dsh-sudo-mode
 
 ## 终端里的 sudo
 
-Sudo 访问模式下，DSH 终端里的 `sudo <命令>` 也可以直接使用。终端仍运行在原来的 `workspace-write` 沙箱里，但 `sudo` 包装器会把命令通过 Unix socket 交给 host broker；host 弹出密码框显示完整命令，用户输入 root 密码后执行，输出回传终端。
+Sudo 访问模式下，DSH 终端里的 `sudo <命令>` 也可以直接使用。终端仍运行在原来的 `workspace-write` 沙箱里，但 `sudo` 包装器会把命令通过 Unix socket 交给 host broker。只读命令（如 `sudo ls`）只弹确认框、不提权；写操作/提权操作才弹密码框，显示完整命令，用户输入 root 密码后执行，输出回传终端。
 
 限制：
 
 - 只支持非交互命令，例如 `sudo apt update`、`sudo systemctl restart nginx`；
+- 只读命令（`sudo ls` 等）只弹确认框，不提权，以当前用户执行；目标只有 root 可读时返回权限错误；
 - 不支持 `sudo vim`、`sudo -i`、需要 TTY 的交互式程序；
 - 只拦截直接输入的 `sudo <命令>`，不拦截脚本里写死的 `/usr/bin/sudo`；
 - broker 每次执行前都会重新检查当前权限模式必须是 **Sudo 访问**，否则拒绝；
 - 终端只做黑名单和模糊识别（SSH、局域网、虚拟机/容器、引导/分区等红色二次确认；密码爆破直接拒绝），**没有模型危险度评分**；需要模型解释命令作用、并按评分触发黄色确认时，让助手调用 `sudo_exec`。
 - 终端里直接输入的非 sudo 命令（包括直接 `ssh`、`ping 192.168.x.x`、`docker ...`）不经过本插件；需要审核时交给聊天里的 `bash` / `sudo_exec`。
 
-终端 sudo 与 `sudo_exec` 是两条独立入口：终端命令不经过模型，因此没有 `purpose` 段落，密码框只显示终端命令本身；需要模型解释命令作用时，仍让助手调用 `sudo_exec`。
+终端 sudo 与 `sudo_exec` 是两条独立入口：终端命令不经过模型，因此没有 `purpose` 段落，确认框/密码框只显示终端命令本身；需要模型解释命令作用时，仍让助手调用 `sudo_exec`。只读命令在终端里同样只确认、不提权。
 
 ## 审计、截屏与确认限速
 
